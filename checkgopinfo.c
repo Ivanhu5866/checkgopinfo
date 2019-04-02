@@ -27,6 +27,11 @@ efi_main (EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *systab)
         EFI_STATUS status;
         EFI_GRAPHICS_OUTPUT_PROTOCOL *gop;
         EFI_GUID gop_guid = EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID;
+	UINT32 i = 0;
+	UINT32 maxmode = 0;
+	UINTN size_info;
+	EFI_GRAPHICS_OUTPUT_MODE_INFORMATION *info = NULL;
+	EFI_GRAPHICS_OUTPUT_PROTOCOL_QUERY_MODE querymode;
 
         InitializeLib(image_handle, systab);
 
@@ -37,7 +42,8 @@ efi_main (EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *systab)
                                    &gop);
 
 	if (status == EFI_SUCCESS) {
-        	Print(L"MaxMode %d\n", gop->Mode->MaxMode);
+		maxmode = gop->Mode->MaxMode;
+        	Print(L"MaxMode %d\n", maxmode);
         	Print(L"Current Mode %d :\n", gop->Mode->Mode);
         	Print(L"    Version %d\n", gop->Mode->Info->Version);
         	Print(L"    HorizontalResolution %d\n", gop->Mode->Info->HorizontalResolution);
@@ -45,7 +51,30 @@ efi_main (EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *systab)
         	Print(L"Framebuffer base 0x%llx\n", gop->Mode->FrameBufferBase);
         	Print(L"FrameBufferSize 0x%llx\n", gop->Mode->FrameBufferSize);
 	}
-	else
-		Print(L"Cannot get Locate GOP.\n");
+	else {
+		Print(L"Cannot get Locate GOP, status 0x%llx\n", status);
+		return status;
+	}
+
+	querymode = (void *)(unsigned long)gop->QueryMode;
+	for (i = 0; i < maxmode; i++) {
+        	status = uefi_call_wrapper(querymode,
+                                   	4,
+                                   	gop,
+                                  	i,
+                                   	&size_info,
+					&info);
+
+		if (status == EFI_SUCCESS) {
+			Print(L"Mode %d :\n", i);
+			Print(L"    Version %d\n", info->Version);
+			Print(L"    HorizontalResolution %d\n", info->HorizontalResolution);
+			Print(L"    VerticalResolution %d\n", info->VerticalResolution);
+		}
+		else
+			Print(L"Cannot QueryMode, status 0x%llx\n", status);
+	}
+		
+
         return status;
 }
