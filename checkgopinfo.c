@@ -32,6 +32,9 @@ efi_main (EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *systab)
 	UINTN size_info;
 	EFI_GRAPHICS_OUTPUT_MODE_INFORMATION *info = NULL;
 	EFI_GRAPHICS_OUTPUT_PROTOCOL_QUERY_MODE querymode;
+	EFI_GRAPHICS_OUTPUT_PROTOCOL_SET_MODE setmode;
+	EFI_INPUT_KEY eik;
+	UINT32 mode_set = 0;
 
         InitializeLib(image_handle, systab);
 
@@ -71,10 +74,38 @@ efi_main (EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *systab)
 			Print(L"    HorizontalResolution %d\n", info->HorizontalResolution);
 			Print(L"    VerticalResolution %d\n", info->VerticalResolution);
 		}
-		else
+		else {
 			Print(L"Cannot QueryMode, status 0x%llx\n", status);
+			return status;
+		}
 	}
 		
+	Print(L"Pleas enter the mode you would like to set:\n");
+
+
+	while (1) {
+		WaitForSingleEvent(ST->ConIn->WaitForKey, 0);
+		status = uefi_call_wrapper(ST->ConIn->ReadKeyStroke, 2, ST->ConIn, &eik);
+		Print(L"ScanCode: %lxh  UnicodeChar: %lxh CallRtStatus: %lx\n",
+		eik.ScanCode, eik.UnicodeChar, status);
+		
+		if (eik.UnicodeChar < 0x30 || eik.UnicodeChar > (0x30 + maxmode - 1)) {
+			Print(L"Invalid mode number, please enter again:\n");
+			continue;
+		}
+		mode_set = eik.UnicodeChar - 0x30;
+		break;
+	}
+
+	setmode = (void *)(unsigned long)gop->SetMode;
+	status = uefi_call_wrapper(setmode,
+                           	2,
+                           	gop,
+                          	mode_set);
+
+	if (status != EFI_SUCCESS) {
+		Print(L"Cannot SetMode, status 0x%llx\n", status);
+	}
 
         return status;
 }
