@@ -36,8 +36,15 @@ efi_main (EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *systab)
                                    NULL,
                                    &gop);
 
-	if (status == EFI_SUCCESS)
-        	Print(L"Framebuffer base is at 0x%llx\n", gop->Mode->FrameBufferBase);
+	if (status == EFI_SUCCESS) {
+        	Print(L"MaxMode %d\n", gop->Mode->MaxMode);
+        	Print(L"Current Mode %d :\n", gop->Mode->Mode);
+        	Print(L"    Version %d\n", gop->Mode->Info->Version);
+        	Print(L"    HorizontalResolution %d\n", gop->Mode->Info->HorizontalResolution);
+        	Print(L"    VerticalResolution %d\n", gop->Mode->Info->VerticalResolution);
+        	Print(L"Framebuffer base 0x%llx\n", gop->Mode->FrameBufferBase);
+        	Print(L"FrameBufferSize 0x%llx\n", gop->Mode->FrameBufferSize);
+	}
 	else
 		Print(L"Cannot get Locate GOP.\n");
         return status;
