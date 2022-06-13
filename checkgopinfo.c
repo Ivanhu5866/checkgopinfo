@@ -27,6 +27,9 @@ efi_main (EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *systab)
         EFI_STATUS status;
         EFI_GRAPHICS_OUTPUT_PROTOCOL *gop;
         EFI_GUID gop_guid = EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID;
+        EFI_LOADED_IMAGE *loaded_image = NULL;
+	EFI_DEVICE_PATH_PROTOCOL *FilePath;
+    	EFI_HANDLE load_image_handle = NULL;
 	UINT32 i = 0;
 	UINT32 maxmode = 0;
 	UINTN size_info;
@@ -105,6 +108,53 @@ efi_main (EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *systab)
 
 	if (status != EFI_SUCCESS) {
 		Print(L"Cannot SetMode, status 0x%llx\n", status);
+	}
+
+	Print(L"Continue boot Ubuntu?(Y/N):\n");
+	
+	while (1) {
+		WaitForSingleEvent(ST->ConIn->WaitForKey, 0);
+		status = uefi_call_wrapper(ST->ConIn->ReadKeyStroke, 2, ST->ConIn, &eik);
+		
+		if (eik.UnicodeChar == 0x59 || eik.UnicodeChar == 0x79) {
+			Print(L"Calling shimx64.efi:\n");
+			status = uefi_call_wrapper(BS->HandleProtocol,
+						3,
+						image_handle, 
+						&LoadedImageProtocol, 
+						(void **) &loaded_image);
+			if (EFI_ERROR(status)) {
+				Print(L"HandleProtocol: %r\n", status);
+				return status;
+			}
+			FilePath = FileDevicePath(loaded_image->DeviceHandle, L"efi\\ubuntu\\shimx64.efi");
+			Print(L"file path         : %s\n", DevicePathToStr(FilePath));
+			status = uefi_call_wrapper(BS->LoadImage,
+						6,
+						FALSE,
+						image_handle,
+						FilePath,
+						NULL,
+						0,
+						&load_image_handle);
+			if (EFI_ERROR(status)) {
+				Print(L"Load Image Status = %x\n", status);
+				return status;
+			}
+			status = uefi_call_wrapper(BS->StartImage,
+						3,
+						load_image_handle,
+						NULL,
+						NULL);
+			if (!EFI_ERROR(status)) {
+				Print(L"StartImage success\n");
+			}
+	
+			break;
+		} else if (eik.UnicodeChar == 0x4E || eik.UnicodeChar == 0x6E) {
+			break;
+		} else
+			continue;
 	}
 
         return status;
